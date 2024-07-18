@@ -20,7 +20,7 @@ class PopInfo:
     MAX_DISPLAY_COUNT = 10
 
     def __init__(self, pop_id: str, bedbimfam_prefix: str, dist_col: str, win_size,
-                 standardize: bool, r_band_filename: str = ""):
+                 standardize: bool, r_band_filename: str):
 
         # Save off the population ID
         self.id = pop_id
@@ -69,13 +69,13 @@ class PopInfo:
                 full_rsid_list = self.bim_df[BIM_RSID_COL][drop_indices].to_list()
                 logging.debug("\tCaught %s SNPs using %s filter: %s", drop_count, filt_name,
                               full_rsid_list if drop_count < PopInfo.MAX_DISPLAY_COUNT else 
-                              full_rsid_list + ["..."])
+                              full_rsid_list[:PopInfo.MAX_DISPLAY_COUNT] + ["..."])
             drop_count = np.count_nonzero(bed_drop_indices)
             full_rsid_list = self.bim_df[BIM_RSID_COL][bed_drop_indices].to_list()
             logging.debug("\tCaught %s SNPs with variance < %s: %s", drop_count,
                           PopInfo.SNP_VAR_THRESHOLD,
                           full_rsid_list if drop_count < PopInfo.MAX_DISPLAY_COUNT else 
-                          full_rsid_list + ["..."])
+                          full_rsid_list[:PopInfo.MAX_DISPLAY_COUNT] + ["..."])
 
 
         # Drop elements from G and the bim dataframe
@@ -124,7 +124,7 @@ class PopInfo:
             logging.info("\t Zeros at: %s", np.argwhere(r_band_mat[0] == 0.0))
 
 
-        # Save the matrix to disk if a filename is given
+        # Save the matrix to disk
         self.r_band_filename = r_band_filename
         logging.debug("Saving R matrix for population %s to disk...", self.id)
         np.save(self.r_band_filename, r_band_mat, allow_pickle=False)

@@ -159,12 +159,12 @@ def output_prefix(s_input: str) -> str:
 
     # Validate existence of output directory (and that no conflicts exist)
     if os.path.exists(stripped_p):
-        raise RuntimeError(f"The designated output prefix \"{stripped_p}\" conflicts with "
+        raise ValueError(f"The designated output prefix \"{stripped_p}\" conflicts with "
                            f"an existing file or directory")
 
     s_dir = os.path.dirname(stripped_p)
     if not os.path.exists(s_dir):
-        raise FileNotFoundError(f"The designated output directory [{s_dir}] does not exist.")
+        raise ValueError(f"The designated output directory [{s_dir}] does not exist.")
 
     return stripped_p
 

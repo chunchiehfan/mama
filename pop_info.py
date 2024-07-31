@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 import pandas as pd
@@ -130,6 +131,10 @@ class PopInfo:
         np.save(self.r_band_filename, r_band_mat, allow_pickle=False)
 
         logging.info("Finished pre-processing on population %s\n", self.id)
+
+
+    def __del__(self):
+        os.remove(self.r_band_filename)
 
 
     def get_banded_R(self, use_mmap: bool = True):

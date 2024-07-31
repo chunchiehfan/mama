@@ -7,6 +7,7 @@ eventually be replaced with newly written code.
 
 import argparse as argp
 import contextlib
+import gc
 import io
 from itertools import combinations, combinations_with_replacement
 import logging
@@ -277,8 +278,6 @@ def main_func(argv: List[str]):
 
         # Calculate LD scores
         logging.info("\nCalculating LD scores...")
-        # ldscores_list = [p1info.calc_ldscores(p2info) for p1info, p2info in
-        #                     combinations_with_replacement(popinfo.values(), 2)]
         # This approach is longer than a one-liner that uses a list comprehension, but does
         # allow for reverse ordering by R matrix size and making use of some caching for greater
         # IO efficiency
@@ -302,6 +301,10 @@ def main_func(argv: List[str]):
         logging.info("\nSaving LD scores to [%s]...", ld_score_filename)
         result_df.to_csv(ld_score_filename, sep=DEFAULT_OUT_SEP, na_rep=DEFAULT_OUT_NAN,
                          index_label=SNP_COL)
+
+        # Delete pop info objects
+        del popinfo
+        gc.collect()
 
         # Log any remaining information
         logging.info("\nExecution complete.\n")

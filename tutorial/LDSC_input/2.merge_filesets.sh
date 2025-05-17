@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# Now that we have constructed our definition files, we can merge the EAS and EUR filesets together.
+# Merge the EAS and EUR genotype files into a single PLINK fileset.
 
-plink1 --bfile "chr22_mind02_geno02_maf01_EAS" \
-       --bmerge "chr22_mind02_geno02_maf01_EUR" \
-       --make-bed \
-       --out "chr22_mind02_geno02_maf01_EAS_EUR"
+plink \
+  --bfile chr22_mind02_geno02_maf01_EAS \
+  --bmerge chr22_mind02_geno02_maf01_EUR \
+  --make-bed \
+  --out chr22_mind02_geno02_maf01_EAS_EUR
 
-       

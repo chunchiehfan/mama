@@ -3,6 +3,27 @@
 This brief, self-contained tutorial will walk the user through an end-to-end run of `mama`. We encourage new users to consult this document prior to using the package on their own data. We provide individual-level data of 10 people from 1000 Genomes (5 from EUR sample, 5 from EAS sample) and ~800 randomly selected
 SNPs on chromosome 22. We also give a sample EAS GWAS of BMI (CKB + BBJ) and EUR GWAS of BMI (UKB) restricted to chromosome 22.
 
+## Quick Start Example
+
+The `tutorial` directory contains scripts that demonstrate a complete MAMA
+analysis using the provided toy data. Assuming the dependencies listed in
+`requirements.txt` are installed, run the following commands from within the
+`tutorial` folder:
+
+```bash
+# 1. Merge the example PLINK files
+bash LDSC_input/2.merge_filesets.sh
+
+# 2. Compute LD scores for the merged data
+bash 1.run_mama_ldscores.sh
+
+# 3. Perform the meta-analysis of the BMI GWAS
+bash 2.run_mama_meta.sh
+```
+
+The meta-analysis results will be written to `BMI_MAMA*` files in this
+directory.
+
 Note: Due to the low number of SNPs in the LDSC reference panel, the MAMA output of this tutorial will be very sparse -- approximately 50 SNPs after QC and restricting
 to SNPs in the intersection of the GWAS's and reference panel. When working outside of this tutorial, we obviously recommend a much larger set of SNPs to be included.
 

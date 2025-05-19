@@ -10,6 +10,8 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 import time
+import os
+import tempfile
 
 from util.bim import (read_bim_file, BIM_COLUMNS, BIM_CHR_COL, BIM_RSID_COL, BIM_CM_COL,
                       BIM_BP_COL, BIM_A1_COL, BIM_A2_COL, BIM_SEPARATOR)
@@ -44,6 +46,14 @@ MERGED_MATCHED_FILTER_NAME = "merged_matched_alleles"
 MERGED_SWAPPED_FILTER_NAME = "merged_swapped_alleles"
 MERGED_BIM_FILTERS = {MERGED_MATCHED_FILTER_NAME : merged_matched_alleles,
                       MERGED_SWAPPED_FILTER_NAME : merged_swapped_alleles}
+
+
+def _create_memmap(shape, dtype=np.float32):
+    """Create a temporary memmap-backed array."""
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    path = tmp.name
+    tmp.close()
+    return np.memmap(path, dtype=dtype, mode="w+", shape=shape), path
 
 
 def get_population_indices(df1: pd.DataFrame, df2: pd.DataFrame = None):
@@ -170,7 +180,9 @@ def calculate_R_without_nan(G, lower_extents, step_size=100, mmap_prefix='./'):
 
 # Assumes matrices are filtered to common SNPs before being passed in
 def calculate_ld_scores(banded_r: Tuple[np.ndarray], N: float = 3.0,
-                        lower_extents: np.ndarray = None, swaps: np.ndarray=None):
+                        lower_extents: np.ndarray = None, swaps: np.ndarray=None,
+                        use_memmap: bool = False):
+    """Calculate LD scores using optionally memmap-backed temporary arrays."""
 
     # Input parameter checking plus creating some aliases for readability
     one_anc = len(banded_r) == 1
@@ -187,7 +199,17 @@ def calculate_ld_scores(banded_r: Tuple[np.ndarray], N: float = 3.0,
 
     # Start with product of R matrices, divided through by the R diagonal (which is a row here)
     logging.debug("Calculating correlation product / squared correlation...")
-    r_prod = np.multiply(r_1[0:joint_extent], r_2[0:joint_extent])
+    r_prod_path = None
+    if use_memmap:
+        r_prod, r_prod_path = _create_memmap((joint_extent, M))
+        np.multiply(r_1[0:joint_extent], r_2[0:joint_extent], out=r_prod)
+    else:
+        try:
+            r_prod = np.multiply(r_1[0:joint_extent], r_2[0:joint_extent])
+        except MemoryError:
+            logging.info("Insufficient memory for R product, using memmap.")
+            r_prod, r_prod_path = _create_memmap((joint_extent, M))
+            np.multiply(r_1[0:joint_extent], r_2[0:joint_extent], out=r_prod)
     final_divisor = r_prod[0].copy()
 
     # If reference allele alignment needs to be taken into account, do so
@@ -233,7 +255,14 @@ def calculate_ld_scores(banded_r: Tuple[np.ndarray], N: float = 3.0,
         del diag_element_products
         del correction
 
+    if isinstance(r_prod, np.memmap):
+        r_prod.flush()
     del r_prod
+    if r_prod_path is not None:
+        try:
+            os.remove(r_prod_path)
+        except OSError:
+            pass
     gc.collect()
 
     # Divide through by the R product diagonal

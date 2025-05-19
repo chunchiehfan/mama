@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 
 from ld import (calculate_R_without_nan, calculate_ld_scores, calculate_lower_extents,
-                get_population_indices, read_bim_file, qc_bim_df, read_and_qc_bim_file)
+                get_population_indices, read_bim_file, qc_bim_df, read_and_qc_bim_file,
+                _create_memmap)
 from util.bed import read_bed_file
 from util.bim import BIM_RSID_COL
 from util.df import run_filters
@@ -163,12 +164,13 @@ class PopInfo:
 
 
     def calc_ldscores(self, other: 'PopInfo', self_mat: np.ndarray=None,
-        other_mat: np.ndarray = None):
+        other_mat: np.ndarray = None, use_memmap: bool = False):
 
         if self.id == other.id:
             r = self.get_banded_R() if self_mat is None else self_mat
             logging.info("Calculating LD scores for population %s", self.id)
-            ldscores = pd.Series(calculate_ld_scores((r,), self.N, self.lower_extents),
+            ldscores = pd.Series(calculate_ld_scores((r,), self.N, self.lower_extents,
+                                                    use_memmap=use_memmap),
                                  index=self.bim_df[BIM_RSID_COL],
                                  name="%s_%s" % (self.id, self.id))
         else:
@@ -180,8 +182,18 @@ class PopInfo:
             c1 = self.cross_indices[other.id]
             c2 = other.cross_indices[self.id]
 
-            r1 = np.zeros((joint_extent, joint_M))
-            r2 = np.zeros((joint_extent, joint_M))
+            r1_path = r2_path = None
+            if use_memmap:
+                r1, r1_path = _create_memmap((joint_extent, joint_M))
+                r2, r2_path = _create_memmap((joint_extent, joint_M))
+            else:
+                try:
+                    r1 = np.zeros((joint_extent, joint_M))
+                    r2 = np.zeros((joint_extent, joint_M))
+                except MemoryError:
+                    logging.info("Insufficient memory for LD score matrices, using memmap.")
+                    r1, r1_path = _create_memmap((joint_extent, joint_M))
+                    r2, r2_path = _create_memmap((joint_extent, joint_M))
 
             b1 = np.full(self.M, False)
             b1[c1] = True
@@ -213,7 +225,21 @@ class PopInfo:
                          self.id, other.id)
             ldscores = pd.Series(calculate_ld_scores((r1[0:joint_extent_after_processing],
                                                       r2[0:joint_extent_after_processing]),
-                                                     swaps=swap_mask[self.cross_indices[other.id]]),
+                                                     swaps=swap_mask[self.cross_indices[other.id]],
+                                                     use_memmap=use_memmap),
                                  index=self.bim_df[BIM_RSID_COL].iloc[self.cross_indices[other.id]],
                                  name=f"{self.id}_{other.id}")
+
+            if isinstance(r1, np.memmap):
+                r1.flush()
+            if isinstance(r2, np.memmap):
+                r2.flush()
+            del r1
+            del r2
+            for path in (r1_path, r2_path):
+                if path is not None:
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
         return ldscores
